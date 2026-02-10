@@ -45,14 +45,16 @@ assignment1/
 Navigate to the project directory and run:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 For background execution:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
+
+**Note:** If using Docker Compose V1 (older installations), use `docker-compose` with a hyphen instead.
 
 ### 2. Access the Application
 
@@ -122,19 +124,19 @@ curl -X DELETE http://localhost:5000/api/users/1
 
 ### View Logs
 ```bash
-docker-compose logs -f backend
-docker-compose logs -f postgres
-docker-compose logs -f frontend
+docker compose logs -f backend
+docker compose logs -f postgres
+docker compose logs -f frontend
 ```
 
 ### Stop the Application
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Remove All Data
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ## Environment Variables
@@ -148,8 +150,8 @@ Edit the `.env` file to customize:
 ## Troubleshooting
 
 ### Database Connection Issues
-- Ensure PostgreSQL container has started: `docker-compose ps`
-- Check database logs: `docker-compose logs postgres`
+- Ensure PostgreSQL container has started: `docker compose ps`
+- Check database logs: `docker compose logs postgres`
 - Verify credentials in `.env` file
 
 ### Frontend Cannot Reach Backend
