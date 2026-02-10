@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management Application</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>User Management System</h1>
+            <p class="subtitle">Python Application with PostgreSQL Database</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Status Section -->
+            <section class="status-section">
+                <h2>System Status</h2>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <h3>API Status</h3>
+                        <p id="api-status" class="status-text">Checking...</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>Database Status</h3>
+                        <p id="database-status" class="status-text">Checking...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- User Form Section -->
+            <section class="form-section">
+                <h2>Add New User</h2>
+                <form id="user-form" class="user-form">
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" required 
+                               placeholder="Enter username">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required 
+                               placeholder="Enter email address">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add User</button>
+                </form>
+                <div id="form-message" class="message"></div>
+            </section>
+
+            <!-- Users List Section -->
+            <section class="users-section">
+                <h2>Users List</h2>
+                <div id="users-container" class="users-container">
+                    <p class="loading">Loading users...</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 User Management Application. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
