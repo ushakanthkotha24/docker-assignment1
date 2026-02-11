@@ -1,0 +1,76 @@
+# Frontend (Nginx) Deployment
+# Serves the static HTML/CSS/JS files to users
+# Also proxies API requests to the backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: app-deployment
+  labels:
+    app: frontend
+spec:
+  # Run 2 instances so if one fails the website stays up
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  # Gradual update strategy = no downtime
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Can have 1 extra pod during update
+      maxSurge: 1
+      # Must always have at least 2 pods running
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        # Docker image we built
+        image: frontend:latest
+        # Use local images from minikube, don't pull from registry
+        imagePullPolicy: Never
+        ports:
+        # Nginx listens on port 80
+        - containerPort: 80
+          name: http
+        # Resource limits for this container
+        resources:
+          requests:
+            # Nginx is lightweight, doesn't need much
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            # Cap the resources it can use
+            memory: "256Mi"
+            cpu: "200m"
+        # Liveness Probe: is nginx running?
+        # Hits the root path and expects a response
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          # Give it 10 seconds to start
+          initialDelaySeconds: 10
+          # Check every 10 seconds
+          periodSeconds: 10
+          # Must respond within 5 seconds
+          timeoutSeconds: 5
+          # Restart after 3 failed checks
+          failureThreshold: 3
+        # Readiness Probe: can the frontend serve traffic?
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          # Start checking after 5 seconds
+          initialDelaySeconds: 5
+          # Check every 5 seconds
+          periodSeconds: 5
+          # Response timeout
+          timeoutSeconds: 5
+          # Stop serving traffic after 3 failures
+          failureThreshold: 3

@@ -1,0 +1,16 @@
+# Persistent Volume Claim for PostgreSQL
+# This is basically asking Kubernetes for a disk to store database files
+# Without this, all data would be lost when the pod restarts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: app-deployment
+spec:
+  # ReadWriteOnce = only one pod can use this volume at a time
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # Request 1 gigabyte of storage (adjust for your needs)
+      storage: 1Gi

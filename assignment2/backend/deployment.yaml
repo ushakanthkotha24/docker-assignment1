@@ -1,0 +1,85 @@
+# Backend (Flask API) Deployment
+# Runs the Python Flask application
+# We run 2 copies so if one fails, the other keeps working
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: app-deployment
+  labels:
+    app: backend
+spec:
+  # Run 2 instances of the backend
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  # Rolling update strategy = update gradually without downtime
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Can go 1 pod over the replicas during update
+      maxSurge: 1
+      # Can go 0 pods below replicas (always have at least 2)
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        # This is the docker image we built
+        image: backend:latest
+        # Never: use local minikube docker images, don't try to pull from registry
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+          name: http
+        # Environment variables for the Flask app
+        env:
+        - name: DATABASE_URL
+          # Connect to postgres using the service name as hostname
+          value: postgresql://admin:password123@postgres:5432/python_app_db
+        - name: FLASK_ENV
+          value: development
+        - name: FLASK_APP
+          value: app.py
+        # How much resources this pod gets
+        resources:
+          requests:
+            # Minimum resources needed
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            # Maximum resources allowed
+            memory: "512Mi"
+            cpu: "500m"
+        # Liveness Probe: is the app responding?
+        # Checks the /api/health endpoint every 10 seconds
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          # Give it 30 seconds to start before checking
+          initialDelaySeconds: 30
+          # Check every 10 seconds
+          periodSeconds: 10
+          # Response must come within 5 seconds
+          timeoutSeconds: 5
+          # Restart pod after 3 failed checks
+          failureThreshold: 3
+        # Readiness Probe: can the app handle traffic?
+        # If this fails, kubernetes stops sending traffic to this pod
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          # Check after 10 seconds
+          initialDelaySeconds: 10
+          # Check every 5 seconds
+          periodSeconds: 5
+          # Must respond within 5 seconds
+          timeoutSeconds: 5
+          # After 3 failures, stop sending traffic to this pod
+          failureThreshold: 3

@@ -1,0 +1,6 @@
+# Create a namespace to keep all our app resources organized
+# Think of it like a folder - keeps everything tidy and separate from other projects
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-deployment

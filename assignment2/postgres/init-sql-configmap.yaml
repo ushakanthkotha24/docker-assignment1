@@ -1,0 +1,14 @@
+# PostgreSQL Initialization Script
+# This ConfigMap holds SQL commands that run when postgres starts for the first time
+# Put your table creation and seed data here
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+  namespace: app-deployment
+data:
+  init.sql: |
+    -- Add your SQL initialization commands here
+    -- These will run automatically when postgres starts
+    -- Examples: CREATE TABLE, INSERT initial data, etc.
+    -- Replace this with the actual content from postgres/init.sql

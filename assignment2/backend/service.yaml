@@ -1,0 +1,22 @@
+# Backend Service
+# Exposes the Flask API to other pods in the cluster
+# The frontend will talk to the backend using "backend" as the hostname
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: app-deployment
+  labels:
+    app: backend
+spec:
+  # ClusterIP = internal only, not exposed outside the cluster
+  type: ClusterIP
+  ports:
+  # Route traffic to port 5000 where Flask is listening
+  - port: 5000
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  # Load balance traffic to all pods with label app: backend
+  selector:
+    app: backend

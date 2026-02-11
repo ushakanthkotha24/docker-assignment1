@@ -1,0 +1,93 @@
+# PostgreSQL Deployment
+# Tells Kubernetes how to run the database
+# This creates a pod with a postgres container
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: app-deployment
+  labels:
+    app: postgres
+spec:
+  # We only need one instance of the database
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        # Using postgres version 14
+        image: postgres:14
+        ports:
+        # Standard postgres port
+        - containerPort: 5432
+        # Load credentials from the configmap we created
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        # Mount storage volumes
+        volumeMounts:
+        # Where postgres stores its data files
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+        # Where to find initialization scripts
+        - name: init-sql
+          mountPath: /docker-entrypoint-initdb.d
+        # Resource requests: what this pod needs
+        resources:
+          requests:
+            # Minimum memory it should get
+            memory: "256Mi"
+            # Minimum CPU it should get
+            cpu: "250m"
+          limits:
+            # Maximum memory it's allowed to use
+            memory: "512Mi"
+            # Maximum CPU it's allowed to use
+            cpu: "500m"
+        # Liveness Probe: is postgres actually alive?
+        # If this fails 3 times, kubernetes will restart the pod
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U admin
+          # Wait 30 seconds before first check (postgres needs time to start)
+          initialDelaySeconds: 30
+          # Check every 10 seconds
+          periodSeconds: 10
+          # If the check takes more than 5 seconds, it's a failure
+          timeoutSeconds: 5
+          # Fail after 3 failed checks
+          failureThreshold: 3
+        # Readiness Probe: is postgres ready to accept connections?
+        # If this fails, no traffic will be sent to this pod
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U admin
+          # Check after 5 seconds
+          initialDelaySeconds: 5
+          # Check every 5 seconds
+          periodSeconds: 5
+          # Timeout after 5 seconds
+          timeoutSeconds: 5
+          # Mark as not ready after 3 failed checks
+          failureThreshold: 3
+      # Define the volumes we're using
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+      - name: init-sql
+        configMap:
+          name: postgres-init-sql

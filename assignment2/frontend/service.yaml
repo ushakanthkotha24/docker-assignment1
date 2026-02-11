@@ -1,0 +1,25 @@
+# Frontend Service
+# Makes the Nginx web server accessible from outside the kubernetes cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: app-deployment
+  labels:
+    app: frontend
+spec:
+  # NodePort = expose on a specific port on the Minikube node
+  # This makes it accessible from your machine
+  type: NodePort
+  ports:
+  # Listen on port 80 (http), forward to nginx on port 80
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    # The port users will actually connect to (30000-32767 is the NodePort range)
+    # Port 30080 = nodes external port, easy to remember
+    nodePort: 30080
+    name: http
+  # Route traffic to all pods labeled app: frontend
+  selector:
+    app: frontend

@@ -1,0 +1,22 @@
+# PostgreSQL Service
+# This exposes the postgres pod to other pods in the cluster
+# Other pods can connect using the hostname "postgres"
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: app-deployment
+  labels:
+    app: postgres
+spec:
+  # ClusterIP = only accessible from within the kubernetes cluster (not from outside)
+  # This is what we want for the database - we don't need external access
+  type: ClusterIP
+  ports:
+  # Forward requests on port 5432 to the postgres pod on port 5432
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  # Route traffic to pods labeled with app: postgres
+  selector:
+    app: postgres
