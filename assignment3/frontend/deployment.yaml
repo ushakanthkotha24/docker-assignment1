@@ -30,7 +30,7 @@ spec:
       containers:
       - name: frontend
         # Docker image we built
-        image: frontend:latest
+        image: ushakanth24/frontend:latest
         # Use local images from minikube, don't pull from registry
         imagePullPolicy: Never
         ports:

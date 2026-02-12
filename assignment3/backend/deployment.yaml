@@ -30,7 +30,7 @@ spec:
       containers:
       - name: backend
         # This is the docker image we built
-        image: backend:latest
+        image: ushakanth24/backend:latest
         # Never: use local minikube docker images, don't try to pull from registry
         imagePullPolicy: Never
         ports:

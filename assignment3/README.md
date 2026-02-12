@@ -53,19 +53,17 @@ docker build -t backend:latest ./backend
 docker build -t frontend:latest ./frontend
 
 # Tag for your registry (example using Docker Hub)
-docker tag backend:latest your-username/backend:latest
-docker tag frontend:latest your-username/frontend:latest
+docker tag backend:latest ushakanth24/backend:latest
+docker tag frontend:latest ushakanth24/frontend:latest
 
 # Push to registry
-docker push your-username/backend:latest
-docker push your-username/frontend:latest
+docker push ushakanth24/backend:latest
+docker push ushakanth24/frontend:latest
 ```
 
 **Registry examples:**
-- Docker Hub: `your-username/backend:latest`
-- AWS ECR: `123456789.dkr.ecr.us-east-1.amazonaws.com/backend:latest`
-- GCP GCR: `gcr.io/your-project/backend:latest`
-- Azure ACR: `your-registry.azurecr.io/backend:latest`
+- Docker Hub: `ushakanth24/backend:latest`
+
 
 ### Step 2: Update Image References in Deployments
 
