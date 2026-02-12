@@ -27,6 +27,9 @@ spec:
       labels:
         app: frontend
     spec:
+      # Pull private images from Docker Hub using credentials
+      imagePullSecrets:
+      - name: dockerhub-secret
       # Wait for backend to be ready before starting frontend
       initContainers:
       - name: wait-for-backend

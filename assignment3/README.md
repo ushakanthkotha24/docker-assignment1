@@ -362,5 +362,87 @@ kubectl delete namespace ushakanth
 
 ---
 
+## Private Docker Images with Kubernetes Secrets
+
+Deploy the application using **private Docker Hub images** with authentication via Kubernetes secrets.
+
+### Step 1: Make Frontend Repository Private
+
+Go to Docker Hub and make the frontend repository private:
+
+1. **https://hub.docker.com/r/ushakanth24/frontend** → Settings → Visibility → Private
+
+**Note:** Backend repository remains **public**, so it doesn't need the secret.
+
+### Step 2: Create Docker Registry Secret
+
+Create a secret with your Docker Hub credentials for the private frontend image (use a Personal Access Token for security):
+
+```bash
+kubectl create secret docker-registry dockerhub-secret --docker-server=https://index.docker.io/v1/ --docker-username=ushakanth24 --docker-password=<your-access-token> --docker-email=ushakanth24@gmail.com -n ushakanth
+```
+
+### Step 3: Verify the Secret
+
+```bash
+kubectl get secret dockerhub-secret -n ushakanth
+kubectl describe secret dockerhub-secret -n ushakanth
+```
+
+### Step 4: Apply Updated Deployments
+
+The frontend deployment is configured with `imagePullSecrets`. Restart deployments to apply changes:
+
+```bash
+kubectl apply -f backend/deployment.yaml -n ushakanth
+kubectl apply -f frontend/deployment.yaml -n ushakanth
+```
+
+Or restart them:
+
+```bash
+kubectl rollout restart deployment/backend -n ushakanth
+kubectl rollout restart deployment/frontend -n ushakanth
+```
+
+### Step 5: Monitor Pod Restart
+
+```bash
+kubectl get pods -n ushakanth -w
+```
+
+Wait until all pods show **Running** (1/1 READY).
+
+### Step 6: Verify the App Works
+
+Access the frontend:
+
+```bash
+minikube service frontend -n ushakanth
+```
+
+Or manually: `http://192.168.49.2:30080/`
+
+Test by:
+1. ✅ Load the frontend page
+2. ✅ Try adding a new user
+3. ✅ Verify the backend API responds
+
+### Step 7: Verify Image Pull Configuration
+
+Check deployment configurations:
+
+```bash
+kubectl get deployment backend -n ushakanth -o yaml | grep -A2 imagePullSecrets
+kubectl get deployment frontend -n ushakanth -o yaml | grep -A2 imagePullSecrets
+```
+
+- **backend:** No imagePullSecrets (public image)
+- **frontend:** Has imagePullSecrets: dockerhub-secret (private image)
+
+**Deployment Status:** Mixed public/private images configured with authenticated registry access for private frontend! 🔒
+
+---
+
 **Namespace:** ushakanth  
-**Status:** Production-ready with automatic startup order management
+**Status:** Production-ready with automatic startup order management and private image registry
