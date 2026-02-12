@@ -75,13 +75,15 @@ kubectl get namespaces | grep ushakanth
 
 ### Step 3: Deploy to Kubernetes
 
-All deployments are configured with init containers to handle startup order automatically:
+**No storage class needed!** The database uses temporary storage (perfect for testing/development).
 
 ```bash
 cd ../assignment3
 
 # Deploy all layers (init containers will manage startup order)
 kubectl apply -f postgres/ -f backend/ -f frontend/ -n ushakanth
+
+# Note: Don't apply the pvc.yaml - we're using emptyDir instead
 ```
 
 **Or deploy step-by-step (see each layer start):**
@@ -148,7 +150,24 @@ kubectl get svc frontend -n ushakanth
 
 ---
 
-## How It Works - Init Containers
+## Database Storage Explained
+
+This deployment uses **emptyDir** for database storage:
+
+- **What it is**: Temporary storage that lives on the node
+- **When data is lost**: When the pod is deleted or restarts
+- **Good for**: Testing, development, demos
+- **NOT good for**: Production (use PVC + StorageClass for production)
+
+### For Production - Use PersistentVolume
+
+To add persistent storage:
+
+1. Enable your StorageClass (AWS EBS, Azure Disk, etc.)
+2. Update `postgres/pvc.yaml` with your storage class
+3. Update `postgres/deployment.yaml` to use the PVC
+
+For now, emptyDir keeps things simple!
 
 Each deployment uses init containers to ensure proper startup order:
 
@@ -248,31 +267,13 @@ kubectl logs -n ushakanth <pod-name> -c wait-for-postgres
 
 ### Postgres Stuck in Pending?
 
-Check storage:
+With emptyDir, this shouldn't happen. If it does:
 
 ```bash
-kubectl get pvc -n ushakanth
-kubectl get storageclass
+kubectl describe pod -n ushakanth postgres-xxxxx
 ```
 
-If no storage class, create one for AWS:
-```bash
-kubectl create -f - <<EOF
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: standard
-provisioner: kubernetes.io/aws-ebs
-parameters:
-  type: gp2
-EOF
-```
-
-Then restart postgres:
-```bash
-kubectl delete -f postgres/ -n ushakanth
-kubectl apply -f postgres/ -n ushakanth
-```
+Check the Events section for errors.
 
 ### Pods CrashLoopBackOff?
 

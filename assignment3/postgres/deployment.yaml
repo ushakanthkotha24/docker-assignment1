@@ -32,10 +32,9 @@ spec:
             name: postgres-config
         # Mount storage volumes
         volumeMounts:
-        # Where postgres stores its data files
+        # Where postgres stores its data files (temporary, lost on restart)
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
-          subPath: postgres
         # Where to find initialization scripts
         - name: init-sql
           mountPath: /docker-entrypoint-initdb.d
@@ -86,8 +85,7 @@ spec:
       # Define the volumes we're using
       volumes:
       - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: postgres-pvc
+        emptyDir: {}  # Temporary storage - data lost on pod restart
       - name: init-sql
         configMap:
           name: postgres-init-sql
