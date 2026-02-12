@@ -53,6 +53,7 @@ minikube start
 
 # 2. Point Docker to Minikube (important!)
 eval $(minikube docker-env)
+## it points Docker to Minikube's internal Docker daemon. So when you build the images in assignment1, they're built inside Minikube, making them available to Kubernetes for deployment in assignment2.
 
 # 3. Build your app images
 cd ../assignment1

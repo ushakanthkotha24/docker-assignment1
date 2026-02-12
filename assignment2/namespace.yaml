@@ -34,8 +34,8 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: app-deployment  # <-- CHANGE THIS TO YOUR CUSTOM NAMESPACE NAME
+  name: ushakanth  # <-- CHANGE THIS TO YOUR CUSTOM NAMESPACE NAME
   labels:
-    name: app-deployment
+    name: ushakanth
 
 
