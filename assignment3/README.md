@@ -1,6 +1,6 @@
 # Kubernetes Deployment Guide - Assignment 3
 
-Deploy a three-tier application to your Kubernetes cluster!
+Deploy a three-tier application to your Kubernetes cluster with automatic startup order management!
 
 This folder contains everything you need to deploy:
 - **Database**: PostgreSQL for data storage
@@ -35,13 +35,13 @@ assignment3/
 
 ---
 
-## Deployment Instructions
+## Quick Deployment
 
 ### Prerequisites
 
 - **kubectl** - Connected to your Kubernetes cluster
 - **Namespace "ushakanth"** - Already created
-- **Docker images** - Pushed to a registry
+- **Docker images** - Pushed to Docker Hub or your registry
 
 ### Step 1: Build and Push Docker Images
 
@@ -52,99 +52,77 @@ cd ../assignment1
 docker build -t backend:latest ./backend
 docker build -t frontend:latest ./frontend
 
-# Tag for your registry (example using Docker Hub)
+# Tag and push to Docker Hub
 docker tag backend:latest ushakanth24/backend:latest
 docker tag frontend:latest ushakanth24/frontend:latest
 
-# Push to registry
 docker push ushakanth24/backend:latest
 docker push ushakanth24/frontend:latest
 ```
 
-**Registry examples:**
-- Docker Hub: `ushakanth24/backend:latest`
+**Other Registry Options:**
+- AWS ECR: `123456789.dkr.ecr.us-east-1.amazonaws.com/backend:latest`
+- GCP GCR: `gcr.io/your-project/backend:latest`
+- Azure ACR: `your-registry.azurecr.io/backend:latest`
 
-
-### Step 2: Update Image References in Deployments
-
-Edit both deployment files to use your pushed images:
-
-```bash
-# Open backend/deployment.yaml
-# Find: image: backend:latest
-# Replace with: image: your-username/backend:latest
-
-# Open frontend/deployment.yaml
-# Find: image: frontend:latest
-# Replace with: image: your-username/frontend:latest
-```
-
-If using private registry, add this to both deployments under `image`:
-```yaml
-imagePullPolicy: IfNotPresent
-```
-
-### Step 3: Verify Cluster Connection
+### Step 2: Verify Cluster Connection
 
 ```bash
-# Check current context
 kubectl config current-context
-
-# List nodes
 kubectl get nodes
-
-# Verify namespace exists
 kubectl get namespaces | grep ushakanth
 ```
 
-### Step 4: Deploy to Kubernetes
+### Step 3: Deploy to Kubernetes
 
-**Important:** kubectl cannot read README.md files, so use one of these methods:
+All deployments are configured with init containers to handle startup order automatically:
 
-**Option A: Deploy each layer separately (Recommended)**
 ```bash
 cd ../assignment3
 
+# Deploy all layers (init containers will manage startup order)
+kubectl apply -f postgres/ -f backend/ -f frontend/ -n ushakanth
+```
+
+**Or deploy step-by-step (see each layer start):**
+
+```bash
+# Deploy postgres first
 kubectl apply -f postgres/ -n ushakanth
+kubectl get pods -n ushakanth -w
+# Wait until postgres shows Running (Ctrl+C)
+
+# Deploy backend (init container waits for postgres)
 kubectl apply -f backend/ -n ushakanth
+kubectl get pods -n ushakanth -w
+# Wait until both backend pods show Running (Ctrl+C)
+
+# Deploy frontend (init container waits for backend)
 kubectl apply -f frontend/ -n ushakanth
+kubectl get pods -n ushakanth -w
+# Wait until frontend pods show Running (Ctrl+C)
 ```
 
-**Option B: Deploy all YAML files at once**
-```bash
-cd ../assignment3
-
-kubectl apply -f backend/ -f frontend/ -f postgres/ -n ushakanth
-```
-
-**Option C: Deploy using find command**
-```bash
-cd ../assignment3
-
-kubectl apply -f $(find . -name "*.yaml") -n ushakanth
-```
-
-### Step 5: Monitor Deployment
+### Step 4: Monitor Deployment
 
 ```bash
-# Watch pods starting up
+# Watch all pods
 kubectl get pods -n ushakanth -w
 
-# Once all pods are running, check services
+# Check services
 kubectl get svc -n ushakanth
 
 # View all resources
 kubectl get all -n ushakanth
 ```
 
-### Step 6: Access Your Application
+### Step 5: Access Your Application
 
-**Option A: NodePort (External IP)**
+**Option A: Using NodePort**
 ```bash
 kubectl get svc frontend -n ushakanth
-
-# Get the EXTERNAL-IP and PORT
-# Visit: http://EXTERNAL-IP:PORT
+# Note the PORT(S) value (should be something like 80:30080/TCP)
+# Visit: http://<your-cluster-ip>:30080
 ```
 
 **Option B: Port Forwarding**
@@ -153,30 +131,67 @@ kubectl port-forward -n ushakanth svc/frontend 8080:80
 # Visit: http://localhost:8080
 ```
 
-**Option C: LoadBalancer (if available)**
+**Option C: LoadBalancer (Cloud Only)**
 
-Change frontend service type to LoadBalancer:
+Edit `frontend/service.yaml` and change:
 ```yaml
 spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 80
+  type: LoadBalancer  # Instead of NodePort
 ```
 
-Then deploy and check:
+Then:
 ```bash
+kubectl apply -f frontend/service.yaml -n ushakanth
 kubectl get svc frontend -n ushakanth
 # Wait for EXTERNAL-IP to be assigned
 ```
 
 ---
 
+## How It Works - Init Containers
+
+Each deployment uses init containers to ensure proper startup order:
+
+**Postgres**: No dependencies, starts immediately
+
+**Backend**: Has init container that:
+- Waits for postgres:5432 to be listening
+- Only then starts Flask application
+
+**Frontend**: Has init container that:
+- Waits for backend:5000 to be listening
+- Only then starts Nginx
+
+This prevents "host not found" and connection errors!
+
+---
+
+## Pod States Explained
+
+| State | Meaning |
+|-------|---------|
+| `Pending` | Waiting for node resources |
+| `Init:0/1` | Running init container (waiting for dependency) |
+| `Running` | Pod is healthy and ready |
+| `CrashLoopBackOff` | Pod keeps crashing - check logs |
+
+### Init Containers are Normal!
+
+If you see `Init:0/1`, the init container is working:
+
+```bash
+# Check init container logs
+kubectl logs -n ushakanth <pod-name> -c wait-for-backend
+kubectl logs -n ushakanth <pod-name> -c wait-for-postgres
+
+# This just means it's waiting - be patient!
+```
+
+---
+
 ## Configuration Management
 
-All settings are in ConfigMaps and can be updated without rebuilding:
-
-### Backend Configuration (backend/configmap.yaml)
+### Backend (backend/configmap.yaml)
 
 ```yaml
 FLASK_ENV: development
@@ -184,17 +199,19 @@ DATABASE_HOST: postgres
 DATABASE_USER: admin
 DATABASE_PASSWORD: password123
 SECRET_KEY: dev-secret-key
+CORS_ORIGINS: http://localhost:3000,http://frontend:80
 ```
 
-### Frontend Configuration (frontend/configmap.yaml)
+### Frontend (frontend/configmap.yaml)
 
 ```yaml
 BACKEND_API_URL: http://backend:5000
 APP_NAME: Python Docker App
 APP_VERSION: "1.0.0"
+NGINX_WORKER_PROCESSES: "auto"
 ```
 
-### Database Configuration (postgres/configmap.yaml)
+### Database (postgres/configmap.yaml)
 
 ```yaml
 POSTGRES_DB: python_app_db
@@ -205,7 +222,7 @@ POSTGRES_PASSWORD: password123
 ### Update Configuration
 
 1. Edit the ConfigMap file
-2. Apply the change:
+2. Apply changes:
    ```bash
    kubectl apply -f backend/configmap.yaml -n ushakanth
    ```
@@ -216,14 +233,80 @@ POSTGRES_PASSWORD: password123
 
 ---
 
+## Troubleshooting
+
+### Init Containers Waiting Too Long?
+
+```bash
+# Check init container status
+kubectl get pods -n ushakanth
+
+# View init container logs (normal to see "waiting for..." messages)
+kubectl logs -n ushakanth <pod-name> -c wait-for-backend
+kubectl logs -n ushakanth <pod-name> -c wait-for-postgres
+```
+
+### Postgres Stuck in Pending?
+
+Check storage:
+
+```bash
+kubectl get pvc -n ushakanth
+kubectl get storageclass
+```
+
+If no storage class, create one for AWS:
+```bash
+kubectl create -f - <<EOF
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+EOF
+```
+
+Then restart postgres:
+```bash
+kubectl delete -f postgres/ -n ushakanth
+kubectl apply -f postgres/ -n ushakanth
+```
+
+### Pods CrashLoopBackOff?
+
+Check logs:
+
+```bash
+kubectl logs -n ushakanth -l app=backend --tail=50
+kubectl logs -n ushakanth -l app=frontend --tail=50
+kubectl logs -n ushakanth -l app=postgres --tail=50
+```
+
+### Still Having Issues?
+
+Get detailed info:
+
+```bash
+kubectl describe pod -n ushakanth <pod-name>
+# Look at Events section at the bottom
+```
+
+---
+
 ## Useful Commands
 
 ```bash
 # See all pods
 kubectl get pods -n ushakanth
 
+# See all services
+kubectl get svc -n ushakanth
+
 # View pod logs
 kubectl logs -n ushakanth -l app=backend
+kubectl logs -n ushakanth <specific-pod-name>
 
 # Connect to a pod
 kubectl exec -it -n ushakanth <pod-name> -- /bin/sh
@@ -249,41 +332,9 @@ kubectl top pods -n ushakanth
 
 ---
 
-## Troubleshooting
+## Using a Different Namespace
 
-### Pods are in "Pending" or "CrashLoopBackOff"
-
-```bash
-kubectl describe pod -n ushakanth <pod-name>
-# Check the Events section at the bottom
-```
-
-### Images not found
-
-Verify images are pushed to your registry and the image path is correct in deployments.
-
-### Backend can't connect to database
-
-```bash
-kubectl logs -n ushakanth -l app=backend
-# Wait a minute - postgres may still be starting
-```
-
-### Port already in use
-
-```bash
-# Find process using port
-lsof -i :8080
-
-# Kill it if needed
-kill -9 <PID>
-```
-
----
-
-## Switching to a Different Namespace
-
-If you want to use a different namespace:
+To use a different namespace:
 
 ```bash
 # Create new namespace
@@ -293,7 +344,7 @@ kubectl create namespace my-namespace
 find . -name "*.yaml" -exec sed -i 's/namespace: ushakanth/namespace: my-namespace/g' {} \;
 
 # Deploy
-kubectl apply -f . -n my-namespace
+kubectl apply -f postgres/ -f backend/ -f frontend/ -n my-namespace
 ```
 
 ---
@@ -302,16 +353,13 @@ kubectl apply -f . -n my-namespace
 
 ```bash
 # Delete all resources in namespace
-kubectl delete -f . -n ushakanth
+kubectl delete -f postgres/ -f backend/ -f frontend/ -n ushakanth
 
-# Delete entire namespace
+# Or delete entire namespace (deletes everything in it)
 kubectl delete namespace ushakanth
 ```
 
 ---
 
 **Namespace:** ushakanth  
-**Status:** Ready for production deployment
-
-# Delete existing pods
-kubectl delete -f backend/ -f frontend/ -f postgres/ -n ushakanth
+**Status:** Production-ready with automatic startup order management

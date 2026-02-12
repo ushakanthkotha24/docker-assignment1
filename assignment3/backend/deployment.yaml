@@ -27,6 +27,11 @@ spec:
       labels:
         app: backend
     spec:
+      # Wait for postgres to be ready before starting backend
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nc -z postgres:5432; do echo waiting for postgres; sleep 2; done']
       containers:
       - name: backend
         # This is the docker image we built
@@ -54,8 +59,8 @@ spec:
           httpGet:
             path: /api/health
             port: 5000
-          # Give it 30 seconds to start before checking
-          initialDelaySeconds: 30
+          # Give it 40 seconds to start before checking (wait for db init)
+          initialDelaySeconds: 40
           # Check every 10 seconds
           periodSeconds: 10
           # Response must come within 5 seconds
@@ -68,8 +73,8 @@ spec:
           httpGet:
             path: /api/health
             port: 5000
-          # Check after 10 seconds
-          initialDelaySeconds: 10
+          # Check after 20 seconds
+          initialDelaySeconds: 20
           # Check every 5 seconds
           periodSeconds: 5
           # Must respond within 5 seconds
