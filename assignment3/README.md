@@ -362,85 +362,80 @@ kubectl delete namespace ushakanth
 
 ---
 
-## Private Docker Images with Kubernetes Secrets
+## Docker Images and Registry Configuration
 
-Deploy the application using **private Docker Hub images** with authentication via Kubernetes secrets.
+### Current Setup with Kubernetes Secrets
 
-### Step 1: Make Frontend Repository Private
+✅ **Kubernetes Secret Configured:** `dockerhub-secret`
 
-Go to Docker Hub and make the frontend repository private:
+**Frontend deployment** is configured to pull images using the Docker registry secret for authentication.
 
-1. **https://hub.docker.com/r/ushakanth24/frontend** → Settings → Visibility → Private
+- **Frontend**: Public image on Docker Hub (pulls via secret - `dockerhub-secret`)
+- **Backend**: Public image on Docker Hub (pulls without secret)
+- **Database**: PostgreSQL (no image registry needed)
 
-**Note:** Backend repository remains **public**, so it doesn't need the secret.
+### Secret Configuration Details
 
-### Step 2: Create Docker Registry Secret
+The secret `dockerhub-secret` is created with Docker Hub credentials and allows the frontend deployment to authenticate when pulling images.
 
-Create a secret with your Docker Hub credentials for the private frontend image (use a Personal Access Token for security):
-
-```bash
-kubectl create secret docker-registry dockerhub-secret --docker-server=https://index.docker.io/v1/ --docker-username=ushakanth24 --docker-password=<your-access-token> --docker-email=ushakanth24@gmail.com -n ushakanth
-```
-
-### Step 3: Verify the Secret
+**To verify the secret:**
 
 ```bash
+# Check if secret exists in namespace ushakanth
 kubectl get secret dockerhub-secret -n ushakanth
+
+# View secret details
 kubectl describe secret dockerhub-secret -n ushakanth
 ```
 
-### Step 4: Apply Updated Deployments
-
-The frontend deployment is configured with `imagePullSecrets`. Restart deployments to apply changes:
+### Apply Frontend Deployment with Secret Authentication
 
 ```bash
-kubectl apply -f backend/deployment.yaml -n ushakanth
+# Apply the frontend deployment that uses imagePullSecrets
 kubectl apply -f frontend/deployment.yaml -n ushakanth
-```
 
-Or restart them:
+# Restart frontend pods to pull with credentials
+kubectl delete pod -l app=frontend -n ushakanth
 
-```bash
-kubectl rollout restart deployment/backend -n ushakanth
-kubectl rollout restart deployment/frontend -n ushakanth
-```
-
-### Step 5: Monitor Pod Restart
-
-```bash
+# Watch pods come up
 kubectl get pods -n ushakanth -w
 ```
 
-Wait until all pods show **Running** (1/1 READY).
+### Making Frontend Image Private (Optional)
 
-### Step 6: Verify the App Works
+If you want to make the Docker Hub frontend repository private:
 
-Access the frontend:
+1. Go to https://hub.docker.com/r/ushakanth24/frontend → Settings → Visibility → **Private**
 
-```bash
-minikube service frontend -n ushakanth
-```
+The frontend deployment will continue to work with the secret credentials.
 
-Or manually: `http://192.168.49.2:30080/`
+### Creating/Updating the Secret
 
-Test by:
-1. ✅ Load the frontend page
-2. ✅ Try adding a new user
-3. ✅ Verify the backend API responds
-
-### Step 7: Verify Image Pull Configuration
-
-Check deployment configurations:
+If you need to create a new secret or update credentials:
 
 ```bash
-kubectl get deployment backend -n ushakanth -o yaml | grep -A2 imagePullSecrets
-kubectl get deployment frontend -n ushakanth -o yaml | grep -A2 imagePullSecrets
+# Generate a Personal Access Token at https://hub.docker.com/settings/security
+
+# Create the secret
+kubectl create secret docker-registry dockerhub-secret \
+  --docker-server=https://index.docker.io/v1/ \
+  --docker-username=ushakanth24 \
+  --docker-password=<your-access-token> \
+  --docker-email=ushakanth24@gmail.com \
+  -n ushakanth
+
+# Or update existing secret
+kubectl delete secret dockerhub-secret -n ushakanth
+kubectl create secret docker-registry dockerhub-secret \
+  --docker-server=https://index.docker.io/v1/ \
+  --docker-username=ushakanth24 \
+  --docker-password=<your-access-token> \
+  --docker-email=ushakanth24@gmail.com \
+  -n ushakanth
+
+# Restart frontend pods to use new credentials
+kubectl delete pod -l app=frontend -n ushakanth
 ```
-
-- **backend:** No imagePullSecrets (public image)
-- **frontend:** Has imagePullSecrets: dockerhub-secret (private image)
-
-**Deployment Status:** Mixed public/private images configured with authenticated registry access for private frontend! 🔒
 
 ---
 
