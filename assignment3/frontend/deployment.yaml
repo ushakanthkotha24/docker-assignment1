@@ -31,7 +31,7 @@ spec:
       initContainers:
       - name: wait-for-backend
         image: busybox:1.28
-        command: ['sh', '-c', 'until nc -z backend:5000; do echo waiting for backend; sleep 2; done']
+        command: ['sh', '-c', 'until nc -z backend.ushakanth.svc.cluster.local:5000; do echo waiting for backend; sleep 2; done']
       containers:
       - name: frontend
         # Docker image we built
