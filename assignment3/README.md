@@ -99,18 +99,29 @@ kubectl get namespaces | grep ushakanth
 
 ### Step 4: Deploy to Kubernetes
 
+**Important:** kubectl cannot read README.md files, so use one of these methods:
+
+**Option A: Deploy each layer separately (Recommended)**
 ```bash
 cd ../assignment3
 
-# Deploy all resources
-kubectl apply -f . -n ushakanth
-```
-
-Or deploy layer by layer:
-```bash
 kubectl apply -f postgres/ -n ushakanth
 kubectl apply -f backend/ -n ushakanth
 kubectl apply -f frontend/ -n ushakanth
+```
+
+**Option B: Deploy all YAML files at once**
+```bash
+cd ../assignment3
+
+kubectl apply -f backend/ -f frontend/ -f postgres/ -n ushakanth
+```
+
+**Option C: Deploy using find command**
+```bash
+cd ../assignment3
+
+kubectl apply -f $(find . -name "*.yaml") -n ushakanth
 ```
 
 ### Step 5: Monitor Deployment

@@ -31,8 +31,6 @@ spec:
       - name: frontend
         # Docker image we built
         image: ushakanth24/frontend:latest
-        # Use local images from minikube, don't pull from registry
-        imagePullPolicy: Never
         ports:
         # Nginx listens on port 80
         - containerPort: 80

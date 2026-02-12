@@ -31,8 +31,6 @@ spec:
       - name: backend
         # This is the docker image we built
         image: ushakanth24/backend:latest
-        # Never: use local minikube docker images, don't try to pull from registry
-        imagePullPolicy: Never
         ports:
         - containerPort: 5000
           name: http
