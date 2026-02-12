@@ -312,3 +312,6 @@ kubectl delete namespace ushakanth
 
 **Namespace:** ushakanth  
 **Status:** Ready for production deployment
+
+# Delete existing pods
+kubectl delete -f backend/ -f frontend/ -f postgres/ -n ushakanth
