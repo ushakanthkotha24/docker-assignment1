@@ -1,0 +1,19 @@
+# Frontend Nginx Configuration
+# Stores configuration options for the frontend application
+# These can be used to configure backend API endpoints and other settings
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: app-deployment
+data:
+  # Backend API endpoint
+  BACKEND_API_URL: http://backend:5000
+  
+  # Application settings
+  APP_NAME: Python Docker App
+  APP_VERSION: "1.0.0"
+  
+  # Frontend server settings
+  NGINX_WORKER_PROCESSES: "auto"
+  NGINX_WORKER_CONNECTIONS: "1024"

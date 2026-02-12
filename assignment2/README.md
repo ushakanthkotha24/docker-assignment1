@@ -1,47 +1,60 @@
 # Kubernetes Deployment Guide - Assignment 2
 
-This folder contains the Kubernetes manifests to deploy the three-tier application (PostgreSQL, Flask backend, and Nginx frontend) to Minikube.
+Get your full-stack application running on Kubernetes with Minikube!
+
+This folder contains everything you need to deploy a three-tier application:
+- **Database**: PostgreSQL for data storage
+- **Backend**: Flask API for business logic  
+- **Frontend**: Nginx web server for the user interface
+
+All running nicely in containers, managed by Kubernetes.
 
 ## What's Inside
 
 ```
 assignment2/
-├── namespace.yaml              # Sets up app-deployment namespace
-├── README.md                   # This file
-├── postgres/
-│   ├── configmap.yaml         # DB credentials and config
-│   ├── pvc.yaml               # Storage for postgres data
-│   ├── deployment.yaml        # Postgres container setup
-│   ├── init-sql-configmap.yaml # SQL initialization scripts
-│   └── service.yaml           # Internal service for postgres
-├── backend/
-│   ├── deployment.yaml        # Flask API with 2 replicas
-│   └── service.yaml           # Internal service for backend
-└── frontend/
-    ├── deployment.yaml        # Nginx web server with 2 replicas
-    └── service.yaml           # NodePort service (port 30080)
+├── namespace.yaml              # Where everything lives (namespace)
+├── setup-custom-namespace.sh   # Smart helper script (use this!)
+├── README.md                   # This guide
+│
+├── postgres/                   # Database tier
+│   ├── configmap.yaml         # Database credentials
+│   ├── pvc.yaml               # Storage volume (so data doesn't disappear)
+│   ├── deployment.yaml        # How to run PostgreSQL
+│   ├── init-sql-configmap.yaml # Database setup scripts
+│   └── service.yaml           # How other services reach it
+│
+├── backend/                    # API tier  
+│   ├── configmap.yaml         # Settings for Flask app
+│   ├── deployment.yaml        # How to run the Flask API
+│   └── service.yaml           # How frontend reaches it
+│
+└── frontend/                   # Web tier
+    ├── configmap.yaml         # Settings for Nginx
+    ├── deployment.yaml        # How to run Nginx
+    └── service.yaml           # How to reach it from outside
 ```
 
 ---
 
-## Quick Start (TL;DR)
+## Quick Start (5 Minutes)
 
-### Prerequisites
+### You'll Need
 
-- Minikube ([get it here](https://minikube.sigs.k8s.io/docs/start/))
-- kubectl CLI
-- Docker (for building images)
+- **Minikube** - A mini Kubernetes cluster on your computer ([install it](https://minikube.sigs.k8s.io/docs/start/))
+- **kubectl** - The command-line tool to talk to Kubernetes
+- **Docker** - For building the container images
 
 ### Deploy in 6 Steps
 
-```powershell
-# 1. Start minikube
+```bash
+# 1. Fire up Minikube
 minikube start
 
-# 2. Use Minikube's docker
-@minikube docker-env | Invoke-Expression
+# 2. Point Docker to Minikube (important!)
+eval $(minikube docker-env)
 
-# 3. Build images (from assignment1 folder)
+# 3. Build your app images
 cd ../assignment1
 docker build -t backend:latest ./backend
 docker build -t frontend:latest ./frontend
@@ -50,14 +63,85 @@ docker build -t frontend:latest ./frontend
 cd ../assignment2
 kubectl apply -f .
 
-# 5. Wait for startup
+# 5. Wait for it to start
 kubectl get pods -n app-deployment -w
 
-# 6. Open the app
+# 6. Open it in your browser
 minikube service frontend -n app-deployment
 ```
 
-That's it. Your app is running.
+Done! Your app is live.
+
+---
+
+## Using Your Own Namespace
+
+By default, everything lives in the `app-deployment` namespace. Want to use your own? Super easy!
+
+### Option 1: Automated Setup (Easiest - Do This!)
+
+Use our smart helper script - it does everything for you:
+
+```bash
+# Make it executable
+chmod +x setup-custom-namespace.sh
+
+# Run it
+./setup-custom-namespace.sh
+
+# It will ask you for your namespace name
+# Then it automatically updates everything and deploys!
+```
+
+The script handles:
+- Creating your namespace
+- Updating all config files
+- Deploying the app
+- Showing you how to access it
+
+### Option 2: Manual Setup (More Control)
+
+Want to do it yourself? Here's how:
+
+1. **Edit your namespace name:**
+   ```bash
+   nano namespace.yaml
+   # Change: name: app-deployment to name: my-namespace
+   ```
+
+2. **Update all config files:**
+   ```bash
+   # Replace in all YAML files (one command!)
+   find . -name "*.yaml" -exec sed -i 's/namespace: app-deployment/namespace: my-namespace/g' {} \;
+   ```
+
+3. **Deploy:**
+   ```bash
+   kubectl apply -f namespace.yaml
+   kubectl apply -f .
+   ```
+
+### Option 3: Skip namespace.yaml Entirely
+
+```bash
+# Create your custom namespace
+kubectl create namespace my-custom-namespace
+
+# Then deploy everything else (update all YAML files with your namespace name first)
+kubectl apply -f backend/ -n my-custom-namespace
+kubectl apply -f frontend/ -n my-custom-namespace
+kubectl apply -f postgres/ -n my-custom-namespace
+```
+
+### Verify Your Namespace
+
+```bash
+# List all namespaces
+kubectl get namespaces
+
+# Check resources in your namespace
+kubectl get all -n my-custom-namespace
+```
 
 ---
 
@@ -65,116 +149,170 @@ That's it. Your app is running.
 
 ### Step 1: Fire up Minikube
 
-```powershell
+```bash
 minikube start
 ```
 
-This spins up a single-node Kubernetes cluster. Takes a minute or so the first time.
+This spins up a lightweight Kubernetes cluster on your machine. Takes a minute the first time.
 
-### Step 2: Tell Docker to Use Minikube's Docker
+### Step 2: Point Docker to Minikube
 
-This is important - we want to build images inside Minikube, not on your host:
+We want to build images inside Minikube, not on your computer:
 
-```powershell
-@minikube docker-env | Invoke-Expression
+```bash
+eval $(minikube docker-env)
 ```
 
-You'll need to run this in every new PowerShell terminal. If you want it automatic, add it to your PowerShell profile.
+Run this in every new terminal. To make it automatic, add it to your `~/.bashrc` or `~/.zshrc`.
 
-### Step 3: Build Your Container Images
+### Step 3: Build Your App Images
 
-Go into the assignment1 folder and build:
+Navigate to assignment1 and build the Docker images:
 
-```powershell
+```bash
 cd ../assignment1
 
-# Build the Flask backend
+# Build the Flask backend API
 docker build -t backend:latest ./backend
 
 # Build the Nginx frontend
 docker build -t frontend:latest ./frontend
 ```
 
-Check they're there:
-```powershell
-docker images
-# Should show backend:latest and frontend:latest
+Verify they built:
+```bash
+docker images | grep -E "backend|frontend"
+# Should show both backend:latest and frontend:latest
 ```
 
-### Step 4: Create the Namespace
+### Step 4: Set Up Your Namespace
 
-Think of a namespace like a folder - it keeps all your stuff organized and separate from other projects:
+A namespace is like a folder in Kubernetes - keeps everything organized:
 
-```powershell
+```bash
 cd ../assignment2
 kubectl apply -f namespace.yaml
 ```
 
 ### Step 5: Deploy the Database
 
-PostgreSQL needs a place to store data that survives pod restarts:
+PostgreSQL stores all the data:
 
-```powershell
+```bash
 kubectl apply -f postgres/
 ```
 
-Wait for it to actually start:
-```powershell
+Wait for it to be ready:
+```bash
 kubectl rollout status deployment/postgres -n app-deployment
 ```
 
-This will watch and wait until Postgres is up. Takes maybe 30 seconds.
-
-**What just happened:**
-- The ConfigMap set up the database credentials
-- The PVC created a storage volume
-- The Deployment started the postgres container
-- The Service made postgres accessible to other pods
+You'll see something like: "deployment 'postgres' successfully rolled out" when ready.
 
 ### Step 6: Deploy the Backend
 
-Now the Flask API:
+The Flask API - the brains of the app:
 
-```powershell
+```bash
 kubectl apply -f backend/
-```
-
-Wait for rollout:
-```powershell
 kubectl rollout status deployment/backend -n app-deployment
 ```
 
 ### Step 7: Deploy the Frontend
 
-Finally, the web server:
+The Nginx web server - what users see:
 
-```powershell
+```bash
 kubectl apply -f frontend/
-```
-
-Wait for it:
-```powershell
 kubectl rollout status deployment/frontend -n app-deployment
 ```
 
-### Step 8: See What You've Built
+### Step 8: See What You Built
 
-```powershell
+```bash
 kubectl get pods -n app-deployment
 ```
 
 You should see 5 pods running:
-- 1 postgres
-- 2 backend (replicas)
-- 2 frontend (replicas)
+- 1 x PostgreSQL database
+- 2 x Flask backend (for redundancy)
+- 2 x Nginx frontend (for redundancy)
 
 ---
 
-## How to Use It
+## Configuration Management with ConfigMaps
 
-### Get the App URL
+All your app settings live in ConfigMaps - separate from your code. Want to change a setting? No need to rebuild. Just update the ConfigMap and restart.
 
-```powershell
+### Backend Configuration
+
+Your Flask app settings (found in `backend/configmap.yaml`):
+
+The `backend/configmap.yaml` contains all Flask application settings:
+
+```yaml
+FLASK_ENV: development           # Flask environment
+FLASK_APP: app.py               # Flask app entry point
+DATABASE_USER: admin            # Database user
+DATABASE_PASSWORD: password123  # Database password
+DATABASE_HOST: postgres         # Database service name
+DATABASE_PORT: "5432"           # Database port
+DATABASE_NAME: python_app_db    # Database name
+SECRET_KEY: dev-secret-key      # Flask secret key
+CORS_ORIGINS: http://localhost:3000,http://frontend:80
+```
+
+These are automatically injected into backend pods via `envFrom` in the deployment.
+
+### Frontend Configuration
+
+Your Nginx settings (`frontend/configmap.yaml`):
+
+```yaml
+BACKEND_API_URL: http://backend:5000  # Where frontend finds the API
+APP_NAME: Python Docker App           # Your app's name
+APP_VERSION: "1.0.0"                  # Version number
+NGINX_WORKER_PROCESSES: "auto"        # Let Nginx figure it out
+NGINX_WORKER_CONNECTIONS: "1024"      # Max simultaneous connections
+```
+
+### Database Configuration
+
+PostgreSQL settings (`postgres/configmap.yaml`):
+
+```yaml
+POSTGRES_DB: python_app_db      # Database name
+POSTGRES_USER: admin            # Admin username
+POSTGRES_PASSWORD: password123  # Admin password (change for production!)
+```
+
+### Updating Configuration
+
+Want to change something?
+
+1. Edit the ConfigMap file:
+   ```bash
+   nano backend/configmap.yaml
+   # Make your changes...
+   ```
+
+2. Deploy the changes:
+   ```bash
+   kubectl apply -f backend/configmap.yaml
+   ```
+
+3. Restart the deployment so it picks up new values:
+   ```bash
+   kubectl rollout restart deployment/backend -n app-deployment
+   ```
+
+WARNING: Changing a ConfigMap doesn't automatically restart pods. You have to restart them manually.
+
+---
+
+## Get the App URL
+
+```bash
 minikube service frontend -n app-deployment
 ```
 
@@ -182,7 +320,7 @@ This opens your browser to the app. Magic.
 
 Or manually forward ports:
 
-```powershell
+```bash
 # Terminal 1: Frontend
 kubectl port-forward -n app-deployment svc/frontend 3000:80
 
@@ -194,59 +332,57 @@ Then visit http://localhost:3000
 
 ### Accessing Individual Services
 
-**Frontend (Nginx)**
-```powershell
+**Frontend** - Your web app:
+```bash
+# Option 1: Let Minikube open it
 minikube service frontend -n app-deployment
-# Or manually forward:
+
+# Option 2: Forward manually
 kubectl port-forward -n app-deployment svc/frontend 3000:80
-# Then visit: http://localhost:3000
+# Then visit http://localhost:3000
 ```
 
-**Backend API**
-```powershell
+**Backend API** - The logic:
+```bash
 kubectl port-forward -n app-deployment svc/backend 5000:5000
-# Test health endpoint:
-Invoke-WebRequest http://localhost:5000/api/health
+# Test it: curl http://localhost:5000/api/health
 ```
 
-**Database**
-```powershell
+**Database** - The storage:
+```bash
 kubectl port-forward -n app-deployment svc/postgres 5432:5432
-# Connect with psql or your DB client
-psql -h localhost -U admin -d python_app_db
+# Connect: psql -h localhost -U admin -d python_app_db
 ```
 
 ### Check What's Happening
 
-```powershell
-# See all the pods
+```bash
+# See all pods
 kubectl get pods -n app-deployment
 
-# See what's exposed
+# See services
 kubectl get svc -n app-deployment
 
-# See the deployments
+# See deployments
 kubectl get deployments -n app-deployment
 ```
 
-### Look at Logs
+### View Logs
 
-```powershell
+```bash
 # Watch backend logs in real-time
 kubectl logs -n app-deployment -l app=backend -f
 
-# See logs from a specific pod
+# Get logs from a specific pod
 kubectl logs -n app-deployment <pod-name>
 
-# Get the last 100 lines
+# Last 100 lines
 kubectl logs -n app-deployment -l app=backend --tail=100
 ```
 
-### Get Into a Pod
+### Open a Shell Inside a Pod
 
-Sometimes you need to poke around inside:
-
-```powershell
+```bash
 # Connect to a backend pod
 kubectl exec -it -n app-deployment <pod-name> -- /bin/sh
 
@@ -256,7 +392,7 @@ kubectl exec -n app-deployment <pod-name> -- ps aux
 
 ### Scale Things Up or Down
 
-```powershell
+```bash
 # Run 5 backend pods instead of 2
 kubectl scale deployment backend --replicas=5 -n app-deployment
 
@@ -269,7 +405,7 @@ kubectl get pods -n app-deployment
 
 ### See Everything that Happened
 
-```powershell
+```bash
 # Events in order
 kubectl get events -n app-deployment --sort-by='.lastTimestamp'
 
@@ -279,7 +415,7 @@ kubectl describe pod -n app-deployment <pod-name>
 
 ### Deploy Changes
 
-```powershell
+```bash
 # Deploy only postgres changes
 kubectl apply -f postgres/
 
@@ -289,7 +425,7 @@ kubectl apply -f . && kubectl get pods -n app-deployment -w
 
 ### Deploy Everything in One Shot
 
-```powershell
+```bash
 kubectl apply -f .
 ```
 
@@ -314,6 +450,10 @@ All three layers talk to each other using Kubernetes service names (postgres, ba
 | What | Command |
 |------|---------|
 | See all pods | `kubectl get pods -n app-deployment` |
+| See all namespaces | `kubectl get namespaces` |
+| Create custom namespace | `kubectl create namespace my-namespace` |
+| Delete namespace | `kubectl delete namespace my-namespace` |
+| Switch default namespace | `kubectl config set-context --current --namespace=my-namespace` |
 | See pod logs | `kubectl logs -n app-deployment <pod-name>` |
 | Connect to pod | `kubectl exec -it -n app-deployment <pod-name> -- /bin/sh` |
 | Port-forward | `kubectl port-forward -n app-deployment svc/frontend 3000:80` |
@@ -322,6 +462,9 @@ All three layers talk to each other using Kubernetes service names (postgres, ba
 | Check all resources | `kubectl get all -n app-deployment` |
 | Restart deployment | `kubectl rollout restart deployment/backend -n app-deployment` |
 | See recent events | `kubectl get events -n app-deployment --sort-by='.lastTimestamp'` |
+| View ConfigMap | `kubectl describe configmap backend-config -n app-deployment` |
+| Edit ConfigMap | `kubectl edit configmap backend-config -n app-deployment` |
+| Apply ConfigMap changes | `kubectl apply -f backend/configmap.yaml && kubectl rollout restart deployment/backend -n app-deployment` |
 
 ---
 
@@ -329,7 +472,7 @@ All three layers talk to each other using Kubernetes service names (postgres, ba
 
 ### Pods are stuck in "Pending" or "CrashLoopBackOff"
 
-```powershell
+```bash
 kubectl describe pod -n app-deployment <pod-name>
 ```
 
@@ -339,15 +482,15 @@ The Events section at the bottom usually tells you what's wrong.
 
 Did you forget to build them in Minikube's Docker?
 
-```powershell
-@minikube docker-env | Invoke-Expression
+```bash
+eval $(minikube docker-env)
 docker build -t backend:latest ../assignment1/backend
 docker build -t frontend:latest ../assignment1/frontend
 ```
 
 ### Can't connect to the app
 
-```powershell
+```bash
 # Are the pods actually running?
 kubectl get pods -n app-deployment
 
@@ -362,7 +505,7 @@ kubectl exec -n app-deployment -it <frontend-pod-name> -- curl http://localhost
 
 Backend logs will show connection errors:
 
-```powershell
+```bash
 kubectl logs -n app-deployment -l app=backend
 ```
 
@@ -372,11 +515,11 @@ The postgres pod might still be starting. Give it a minute and try again.
 
 Something else is using that port:
 
-```powershell
-netstat -ano | findstr :3000
+```bash
+sudo lsof -i :3000
 
 # Kill it if needed
-taskkill /PID <PID> /F
+sudo kill -9 <PID>
 ```
 
 ---
@@ -384,28 +527,28 @@ taskkill /PID <PID> /F
 ## Clean Up
 
 ### Just restart everything
-```powershell
+```bash
 kubectl delete -f .
 kubectl apply -f .
 ```
 
 ### Keep the namespace but reload everything
-```powershell
+```bash
 kubectl delete -f . && kubectl apply -f .
 ```
 
 ### Remove the whole namespace
-```powershell
+```bash
 kubectl delete namespace app-deployment
 ```
 
 ### Stop Minikube (keeps your VM)
-```powershell
+```bash
 minikube stop
 ```
 
 ### Delete everything (can't undo)
-```powershell
+```bash
 minikube delete
 ```
 
@@ -423,14 +566,15 @@ minikube delete
 
 **PersistentVolumeClaim**: A request for storage. The data survives even if the pod is deleted.
 
-**Namespace**: A way to organize and isolate resources. Like a folder.
+**Namespace**: A way to organize and isolate resources. Like a folder. You can have multiple namespaces on the same cluster and deploy the same application in each with different names and configurations. This guide uses the `app-deployment` namespace, but you can customize it to use your own namespace name (see "Using Your Own Namespace" section).
 
 ---
 
 ## Configuration Notes
 
-- Database password is `password123` (change in `postgres/configmap.yaml` for production)
-- Database name is `python_app_db`
+- **Namespace**: Default is `app-deployment`. Customize using `setup-custom-namespace.sh` or edit `namespace.yaml`
+- **Database password** is `password123` (change in `postgres/configmap.yaml` for production)
+- **Database name** is `python_app_db`
 - Backend uses `imagePullPolicy: Never` so it uses your local Docker images
 - Each pod has resource limits to not hog the Minikube VM
 - Health checks are configured so bad pods get restarted automatically
@@ -439,36 +583,60 @@ minikube delete
 
 ## Environment Variables
 
-The backend uses these variables (in `backend/deployment.yaml`):
-- `DATABASE_URL` - Connection string to postgres
-- `FLASK_ENV` - Set to `development`
-- `FLASK_APP` - Points to `app.py`
+All application configuration is now managed through ConfigMaps rather than hardcoded environment variables.
 
-The database (in `postgres/configmap.yaml`):
-- `POSTGRES_DB` - `python_app_db`
-- `POSTGRES_USER` - `admin`
-- `POSTGRES_PASSWORD` - `password123` (change this in production!)
+**Backend Configuration** (in `backend/configmap.yaml`):
+- `FLASK_ENV` - Flask environment mode (development/production)
+- `FLASK_APP` - Entry point for Flask app
+- `DATABASE_USER` - Database user (admin)
+- `DATABASE_PASSWORD` - Database password
+- `DATABASE_HOST` - Database hostname (postgres)
+- `DATABASE_PORT` - Database port (5432)
+- `DATABASE_NAME` - Database name (python_app_db)
+- `SECRET_KEY` - Flask application secret key
+- `CORS_ORIGINS` - Allowed origins for CORS
+
+**Frontend Configuration** (in `frontend/configmap.yaml`):
+- `BACKEND_API_URL` - URL for backend API calls
+- `APP_NAME` - Application display name
+- `APP_VERSION` - Application version
+- `NGINX_WORKER_PROCESSES` - Number of Nginx worker processes
+- `NGINX_WORKER_CONNECTIONS` - Max connections per worker
+
+**Database Configuration** (in `postgres/configmap.yaml`):
+- `POSTGRES_DB` - Database name to create
+- `POSTGRES_USER` - Admin user (admin)
+- `POSTGRES_PASSWORD` - Admin password
+
+See the ConfigMaps section above for how to modify these values.
 
 ---
 
 ## Important Notes
 
+- Configuration is managed through ConfigMaps (`backend-config`, `frontend-config`, `postgres-config`)
+- ConfigMap changes require manual deployment restart to take effect
+- **Namespace Management**: Use `setup-custom-namespace.sh` to easily deploy with a custom namespace
+- All kubectl commands use `-n app-deployment` by default - change this to your namespace name
+- You can have multiple instances of this app running in different namespaces on the same cluster
 - We use `imagePullPolicy: Never` so Kubernetes doesn't try to download the images
 - Each pod requests CPU and memory - this keeps things from crashing due to resource hunger
 - Health checks restart pods that aren't responding
 - The frontend is on NodePort (accessible from outside the cluster)
 - Backend and postgres are ClusterIP (only accessible from inside Kubernetes)
-- Everything runs in the `app-deployment` namespace so you can have other projects running without conflict
 
 ---
 
 ## Pro Tips
 
+- **Custom Namespace**: Use `./setup-custom-namespace.sh` for easy multi-environment deployments
+- **Set default namespace**: `kubectl config set-context --current --namespace=my-namespace` (saves typing `-n` flag)
 - Use `kubectl get events -n app-deployment --sort-by='.lastTimestamp'` to see a timeline of what happened
 - Port-forward is handy for debugging: `kubectl port-forward -n app-deployment pod/<name> 5000:5000`
 - Check resource usage: `kubectl top pods -n app-deployment` (requires metrics server)
 - Use `kubectx` and `kubens` tools to switch between clusters and namespaces faster
-- Add this to your PowerShell profile to auto-set docker env: `@minikube docker-env | Invoke-Expression`
+- Add this to your shell profile (~/.bashrc or ~/.zshrc) to auto-set docker env: `eval $(minikube docker-env)`
+- Deploy multiple instances: Create different namespaces and run the helper script multiple times for dev, staging, and production
 
 ---
 

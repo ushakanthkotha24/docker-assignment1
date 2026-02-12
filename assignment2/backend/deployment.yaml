@@ -36,15 +36,10 @@ spec:
         ports:
         - containerPort: 5000
           name: http
-        # Environment variables for the Flask app
-        env:
-        - name: DATABASE_URL
-          # Connect to postgres using the service name as hostname
-          value: postgresql://admin:password123@postgres:5432/python_app_db
-        - name: FLASK_ENV
-          value: development
-        - name: FLASK_APP
-          value: app.py
+        # Environment variables from ConfigMap for the Flask app
+        envFrom:
+        - configMapRef:
+            name: backend-config
         # How much resources this pod gets
         resources:
           requests:

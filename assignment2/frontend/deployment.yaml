@@ -37,6 +37,10 @@ spec:
         # Nginx listens on port 80
         - containerPort: 80
           name: http
+        # Environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: frontend-config
         # Resource limits for this container
         resources:
           requests:

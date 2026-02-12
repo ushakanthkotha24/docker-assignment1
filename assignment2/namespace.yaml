@@ -1,6 +1,41 @@
-# Create a namespace to keep all our app resources organized
-# Think of it like a folder - keeps everything tidy and separate from other projects
+# ====================================================================================
+# Kubernetes Namespace Configuration
+# ====================================================================================
+#
+# A namespace is like a folder or container within Kubernetes.
+# It helps you organize and isolate resources on your cluster.
+#
+# Why Use Namespaces?
+# - Keep different projects/environments separate (dev, staging, prod)
+# - Easy to manage multiple versions of the same app
+# - Clean up everything at once by deleting the namespace
+# - Team collaboration with resource isolation
+#
+# CUSTOMIZE THIS FILE
+# Change the 'name' field below to create your own namespace!
+#
+# Examples:
+#   name: my-app
+#   name: production
+#   name: staging
+#   name: development
+#   name: team-project
+#
+# After you change this, make sure to update all other YAML files:
+#   - backend/deployment.yaml
+#   - frontend/deployment.yaml
+#   - postgres/deployment.yaml
+#   - All service.yaml and configmap.yaml files
+#
+# Tip: Use the setup-custom-namespace.sh script to do this automatically!
+#
+# ====================================================================================
+
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: app-deployment
+  name: app-deployment  # <-- CHANGE THIS TO YOUR CUSTOM NAMESPACE NAME
+  labels:
+    name: app-deployment
+
+

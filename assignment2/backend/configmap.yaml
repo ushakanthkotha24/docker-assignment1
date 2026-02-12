@@ -1,0 +1,25 @@
+# Backend Flask Application Configuration
+# Stores all configuration options needed by the Flask app
+# These are injected into the backend pods as environment variables
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: app-deployment
+data:
+  # Flask environment configuration
+  FLASK_ENV: development
+  FLASK_APP: app.py
+  
+  # Database connection settings
+  DATABASE_USER: admin
+  DATABASE_PASSWORD: password123
+  DATABASE_HOST: postgres
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: python_app_db
+  
+  # Application settings
+  SECRET_KEY: dev-secret-key-change-in-production
+  
+  # CORS settings for frontend communication
+  CORS_ORIGINS: "http://localhost:3000,http://frontend:80"
