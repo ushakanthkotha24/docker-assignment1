@@ -1,0 +1,13 @@
+# Pod Disruption Budget for Frontend
+# Ensures high availability during cluster maintenance and node drains
+# Guarantees minimum availability of frontend replicas
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: ushakanth
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontend

@@ -1,0 +1,17 @@
+# Frontend Nginx Configuration
+# Stores all configuration options needed by Nginx
+# These are injected as environment variables for the frontend pods
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: ushakanth
+data:
+  # Backend API endpoint from Nginx perspective
+  BACKEND_URL: http://backend:5000
+  
+  # Application name for UI
+  APP_NAME: "Three-Tier App - Assignment 4"
+  
+  # Environment
+  ENVIRONMENT: "production"

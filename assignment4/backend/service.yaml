@@ -1,0 +1,30 @@
+# Backend Service for 3-Node Cluster
+# Provides stable DNS name for frontend to communicate with backend
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: ushakanth
+  labels:
+    app: backend
+    tier: api
+spec:
+  # ClusterIP = only accessible from within the cluster (perfect for internal APIs)
+  type: ClusterIP
+  
+  # Selector: route traffic to pods with this label
+  selector:
+    app: backend
+  
+  # Port mapping
+  ports:
+  - name: http
+    port: 5000
+    targetPort: http
+    protocol: TCP
+  
+  # Session affinity for stateful backend if needed
+  sessionAffinity: None
+  
+  # DNS will be: backend.ushakanth.svc.cluster.local
+  # From frontend: backend:5000

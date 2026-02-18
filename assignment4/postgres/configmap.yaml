@@ -1,0 +1,16 @@
+# PostgreSQL Configuration for 3-Node Cluster
+# Stores database credentials and settings that postgres needs
+# These are injected into the postgres pod as environment variables
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: ushakanth
+data:
+  # Database name to create
+  POSTGRES_DB: python_app_db
+  # Default user for the database
+  POSTGRES_USER: admin
+  # Password for the admin user
+  # NOTE: Change this in production! Use Kubernetes Secrets instead
+  POSTGRES_PASSWORD: password123

@@ -1,0 +1,13 @@
+# Pod Disruption Budget for Backend
+# Ensures high availability during cluster maintenance and node drains
+# Guarantees minimum availability of backend replicas
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: ushakanth
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: backend

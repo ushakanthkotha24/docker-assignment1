@@ -1,0 +1,34 @@
+# PostgreSQL Initialization SQL Script
+# Runs once when PostgreSQL first starts
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-sql
+  namespace: ushakanth
+data:
+  init.sql: |
+    -- Create users table for the application
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(80) UNIQUE NOT NULL,
+      email VARCHAR(120) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Create sample data
+    INSERT INTO users (username, email) VALUES
+      ('alice', 'alice@example.com'),
+      ('bob', 'bob@example.com'),
+      ('charlie', 'charlie@example.com')
+    ON CONFLICT DO NOTHING;
+
+    -- Create logs table
+    CREATE TABLE IF NOT EXISTS logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
+      action VARCHAR(255) NOT NULL,
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin;

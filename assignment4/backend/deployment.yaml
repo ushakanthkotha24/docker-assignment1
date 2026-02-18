@@ -1,0 +1,114 @@
+# Backend (Flask API) Deployment for 3-Node Cluster
+# Runs the Python Flask application with pod anti-affinity
+# Replicas will be spread across different worker nodes for resilience
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: ushakanth
+  labels:
+    app: backend
+    tier: api
+spec:
+  # Run 2 instances of the backend (one per worker node)
+  # Can be scaled to 3 for all worker nodes: kubectl scale deployment backend --replicas=3
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  
+  # Rolling update strategy = update gradually without downtime
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Can go 1 pod over the replicas during update
+      maxSurge: 1
+      # Minimum 1 pod must stay running during update
+      maxUnavailable: 0
+  
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: api
+    spec:
+      # Pull images using Docker registry secret credentials
+      imagePullSecrets:
+      - name: dockerhub-secret
+      
+      # Pod anti-affinity: spread replicas across different nodes
+      affinity:
+        podAntiAffinity:
+          # Preferred: best effort to spread replicas
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - backend
+              topologyKey: kubernetes.io/hostname
+      
+      # Init container: wait for PostgreSQL to be ready
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.28
+        command: 
+        - sh
+        - -c
+        - |
+          echo "Waiting for PostgreSQL to be ready..."
+          until nc -z postgres:5432; do 
+            echo "PostgreSQL is unavailable - sleeping"
+            sleep 2
+          done
+          echo "PostgreSQL is up - continuing..."
+      
+      containers:
+      - name: backend
+        # Docker image for Flask backend
+        image: ushakanth24/backend:latest
+        imagePullPolicy: Always
+        
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        
+        # Environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: backend-config
+        
+        # Resource requests and limits for 3-node cluster
+        resources:
+          requests:
+            # Minimum resources needed
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            # Maximum resources allowed
+            memory: "512Mi"
+            cpu: "1000m"
+        
+        # Liveness probe: restart if not responding
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe: only route traffic if ready
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2

@@ -1,0 +1,32 @@
+# Frontend Service for 3-Node Cluster
+# Exposes the frontend to outside the cluster
+# Accessible from browser via NodePort or LoadBalancer
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: ushakanth
+  labels:
+    app: frontend
+    tier: web
+spec:
+  # NodePort = accessible from outside the cluster on each node's IP
+  # For 3-node cluster: accessible on http://<any-node-ip>:<NODE_PORT>
+  # Options: ClusterIP (internal only), NodePort (any node), LoadBalancer (if supported)
+  type: NodePort
+  
+  # Selector: route traffic to pods with this label
+  selector:
+    app: frontend
+  
+  # Port mapping
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+    # NodePort is automatically assigned (range 30000-32767)
+    # Or specify: nodePort: 30080
+  
+  # Session affinity: stick to same backend pod if needed
+  sessionAffinity: None

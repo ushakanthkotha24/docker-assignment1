@@ -1,0 +1,27 @@
+# PostgreSQL Service for 3-Node Cluster
+# Provides a stable DNS name for other pods to reach PostgreSQL
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: ushakanth
+  labels:
+    app: postgres
+    tier: database
+spec:
+  # ClusterIP = only accessible from within the cluster
+  type: ClusterIP
+  
+  # Selector: route traffic to pods with this label
+  selector:
+    app: postgres
+  
+  # Port mapping
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: postgres
+    protocol: TCP
+  
+  # DNS will be: postgres.ushakanth.svc.cluster.local
+  # From backend/frontend: postgres:5432

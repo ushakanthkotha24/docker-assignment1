@@ -1,0 +1,116 @@
+# PostgreSQL Deployment for 3-Node Cluster
+# Single instance database pinned to control-plane node
+# This ensures data consistency and high availability
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: ushakanth
+  labels:
+    app: postgres
+    tier: database
+spec:
+  # Single instance of PostgreSQL (can't have multiple replicas with shared storage)
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  strategy:
+    # Use Recreate strategy since we have a single database instance
+    # (can't run two databases on same storage simultaneously)
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: database
+    spec:
+      # Pin PostgreSQL to control-plane for data consistency
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+
+      containers:
+      - name: postgres
+        # Official PostgreSQL image, version 14
+        image: postgres:14
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        # Standard PostgreSQL port
+        - name: postgres
+          containerPort: 5432
+        
+        # Load credentials from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: postgres-config
+        
+        # Mount persistent storage and initialization scripts
+        volumeMounts:
+        # Database data directory (persistent)
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres  # Create subdirectory to avoid permission issues
+        
+        # Initialization scripts (read-only)
+        - name: init-sql
+          mountPath: /docker-entrypoint-initdb.d
+          readOnly: true
+        
+        # Resource requests and limits for 3-node cluster
+        resources:
+          requests:
+            # Minimum resources guaranteed
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            # Maximum resources allowed
+            memory: "512Mi"
+            cpu: "1000m"
+        
+        # Liveness probe: restart if not responding
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U admin -d python_app_db
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe: only route traffic if ready
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U admin -d python_app_db
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+      # Volumes to mount
+      volumes:
+      # Persistent storage for database files
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+      
+      # ConfigMap for initialization scripts
+      - name: init-sql
+        configMap:
+          name: postgres-init-sql
+          defaultMode: 0755
+
+      # Security context for the pod
+      securityContext:
+        fsGroup: 999  # PostgreSQL user group ID

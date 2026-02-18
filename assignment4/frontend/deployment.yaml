@@ -1,0 +1,115 @@
+# Frontend (Nginx) Deployment for 3-Node Cluster
+# Serves static HTML/CSS/JS files and proxies API requests to backend
+# Replicas spread across worker nodes for resilience and load balancing
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: ushakanth
+  labels:
+    app: frontend
+    tier: web
+spec:
+  # Run 2 instances so if one fails the website stays up
+  # Can be scaled to 3: kubectl scale deployment frontend --replicas=3
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  
+  # Gradual update strategy = no downtime during updates
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Can have 1 extra pod during update
+      maxSurge: 1
+      # Minimum 1 pod must stay running during update
+      maxUnavailable: 0
+  
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: web
+    spec:
+      # Pull images using Docker registry secret credentials
+      imagePullSecrets:
+      - name: dockerhub-secret
+      
+      # Pod anti-affinity: spread replicas across different nodes
+      affinity:
+        podAntiAffinity:
+          # Preferred: best effort to spread replicas
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - frontend
+              topologyKey: kubernetes.io/hostname
+      
+      # Init container: wait for backend to be ready
+      initContainers:
+      - name: wait-for-backend
+        image: busybox:1.28
+        command: 
+        - sh
+        - -c
+        - |
+          echo "Waiting for Backend API to be ready..."
+          until nc -z backend:5000; do 
+            echo "Backend is unavailable - sleeping"
+            sleep 2
+          done
+          echo "Backend is up - continuing..."
+      
+      containers:
+      - name: frontend
+        # Docker image for Nginx frontend
+        image: ushakanth24/frontend:latest
+        imagePullPolicy: Always
+        
+        ports:
+        # Nginx listens on port 80
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        
+        # Environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: frontend-config
+        
+        # Resource limits for this container
+        resources:
+          requests:
+            # Minimum resources needed
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            # Maximum resources allowed
+            memory: "256Mi"
+            cpu: "500m"
+        
+        # Liveness probe: restart if not responding
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe: only route traffic if ready
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
