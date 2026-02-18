@@ -32,10 +32,6 @@ spec:
         app: frontend
         tier: web
     spec:
-      # Pull images using Docker registry secret credentials
-      imagePullSecrets:
-      - name: dockerhub-secret
-      
       # Pod anti-affinity: spread replicas across different nodes
       affinity:
         podAntiAffinity:
@@ -55,8 +51,8 @@ spec:
       containers:
       - name: frontend
         # Docker image for Nginx frontend
-        image: ushakanth24/frontend:latest
-        imagePullPolicy: Always
+        image: nginx:latest
+        imagePullPolicy: IfNotPresent
         
         ports:
         # Nginx listens on port 80
