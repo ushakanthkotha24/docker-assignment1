@@ -11,9 +11,8 @@ spec:
   # This is required for PostgreSQL
   accessModes:
     - ReadWriteOnce
-  # Use default storage class of the cluster
-  # On AWS EKS: gp2, on Minikube: standard, etc.
-  # storageClassName: standard  # Uncomment if you need to specify a specific storage class
+  # Use local storage class
+  storageClassName: local-storage
   resources:
     requests:
       # Request 5GB of storage for the database
