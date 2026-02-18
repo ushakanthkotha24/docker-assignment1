@@ -18,6 +18,8 @@ assignment4/
 ├── postgres/                   # Database tier
 │   ├── configmap.yaml         # Database credentials
 │   ├── pvc.yaml               # Storage volume
+│   ├── pv.yaml                # Persistent Volume (hostPath)
+│   ├── storageclass.yaml      # Storage class for PV binding
 │   ├── deployment.yaml        # PostgreSQL deployment with node affinity
 │   ├── init-sql-configmap.yaml # Database setup scripts
 │   └── service.yaml           # How other services reach it
@@ -84,7 +86,11 @@ assignment4/
 ### Step 1: Deploy PostgreSQL Database
 
 ```bash
-# Apply all PostgreSQL configurations (order matters)
+# Create storage resources first (StorageClass and PersistentVolume)
+kubectl apply -f postgres/storageclass.yaml
+kubectl apply -f postgres/pv.yaml
+
+# Apply PostgreSQL configurations (order matters)
 kubectl apply -f postgres/configmap.yaml
 kubectl apply -f postgres/init-sql-configmap.yaml
 kubectl apply -f postgres/pvc.yaml
@@ -164,7 +170,11 @@ kubectl get svc -n ushakanth
 kubectl get svc frontend -n ushakanth
 ```
 
-Then access via: `http://<any-node-ip>:<NODE_PORT>`
+**Access via:** `http://<worker-node-ip>:30080`
+
+**Example (using worker node IPs):**
+- `http://172.31.2.22:30080` (kworker1)
+- `http://172.31.14.184:30080` (kworker2)
 
 ### Check PostgreSQL data
 
@@ -233,7 +243,22 @@ spec:
 
 ## Troubleshooting
 
-### Pods stuck in Pending
+### Storage and PersistentVolume Issues
+
+If PVC is stuck in Pending state:
+```bash
+# Check if StorageClass exists
+kubectl get storageclass
+
+# Check PersistentVolume status
+kubectl get pv
+
+# If missing, apply storage resources
+kubectl apply -f postgres/storageclass.yaml
+kubectl apply -f postgres/pv.yaml
+```
+
+### Pods stuck in Init state
 
 ```bash
 # Check why pods can't be scheduled
@@ -266,14 +291,19 @@ kubectl get svc backend -n ushakanth
 kubectl exec -it <frontend-pod> -n ushakanth -- curl backend:5000/health
 ```
 
-### Image pull errors
+### Image Pull Issues
+
+**Note:** The current deployment uses standard Docker Hub images:
+- **Backend:** `ushakanth24/backend:latest` (Flask API with `/api/health` endpoint)
+- **Frontend:** `nginx:latest` (replaced from `ushakanth24/frontend:latest`)
+
+If custom images are needed, push them to Docker Hub and update the deployments.
+
+### Verify Backend Health Endpoint
 
 ```bash
-# Verify Docker registry secret exists
-kubectl get secrets -n ushakanth
-
-# Check the secret is correctly configured
-kubectl describe secret dockerhub-secret -n ushakanth
+# The backend health endpoint is at /api/health (not /health)
+kubectl exec -it <backend-pod> -n ushakanth -- wget -O- http://localhost:5000/api/health
 ```
 
 ---
@@ -288,8 +318,10 @@ kubectl describe secret dockerhub-secret -n ushakanth
 | Pod Anti-Affinity | None | Preferred (spread replicas) |
 | Node Affinity | None | Required for PostgreSQL |
 | Pod Disruption Budget | None | Enabled (min 1 available) |
-| Storage Class | minikube-hostpath | cluster-default (multi-node safe) |
+| Storage Class | minikube-hostpath | local-storage (hostPath) |
 | Service Type | ClusterIP/NodePort | NodePort or LoadBalancer |
+| Health Endpoints | /health | /api/health (backend) |
+| Frontend Image | Custom | nginx:latest |
 
 ---
 
@@ -315,9 +347,20 @@ kubectl scale deployment frontend --replicas=3 -n ushakanth
 kubectl get pods -n ushakanth -o wide | grep -E "backend|frontend"
 ```
 
----
+## Deployment Notes
 
-## Cleanup
+### Storage Configuration
+- **StorageClass:** `local-storage` with Immediate binding mode
+- **PersistentVolume:** hostPath at `/data/postgres` on master node
+- **PersistentVolumeClaim:** 5Gi requested storage
+
+### Known Adjustments
+1. **Removed init containers** - Used to wait for upstream services, but DNS resolution issues required removal
+2. **Fixed backend health probe** - Changed from `/health` to `/api/health`
+3. **Frontend image** - Using standard `nginx:latest` instead of custom image
+4. **Image pull secrets** - Removed dependency on dockerhub-secret (use custom images if needed)
+
+---
 
 ```bash
 # Delete all resources in the namespace
