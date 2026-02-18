@@ -51,21 +51,7 @@ spec:
                   - frontend
               topologyKey: kubernetes.io/hostname
       
-      # Init container: wait for backend to be ready
-      initContainers:
-      - name: wait-for-backend
-        image: busybox:1.28
-        command: 
-        - sh
-        - -c
-        - |
-          echo "Waiting for Backend API to be ready..."
-          until nc -z backend:5000; do 
-            echo "Backend is unavailable - sleeping"
-            sleep 2
-          done
-          echo "Backend is up - continuing..."
-      
+
       containers:
       - name: frontend
         # Docker image for Nginx frontend
